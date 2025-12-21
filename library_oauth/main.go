@@ -83,14 +83,14 @@ func addRoutes(mux *http.ServeMux) {
 		req.URL.RawQuery = q.Encode()
 
 		if gothUser, err := gothic.CompleteUserAuth(res, req); err == nil {
-			fmt.Printf("user already logged in, email: %s\n", gothUser.Email)
+			fmt.Printf("goth user %s success\n", gothUser.Email)
+			// this area does not print
 		} else {
 			gothic.BeginAuthHandler(res, req)
 		}
 	})
 
 	mux.HandleFunc("GET /auth/{provider}/callback", func(res http.ResponseWriter, req *http.Request) {
-
 		provider := req.PathValue("provider")
 
 		q := req.URL.Query()
@@ -105,5 +105,6 @@ func addRoutes(mux *http.ServeMux) {
 		}
 
 		fmt.Printf("email: %s\n", user.Email)
+		http.Redirect(res, req, "/", http.StatusFound)
 	})
 }
