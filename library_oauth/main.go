@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sort"
 	"sync"
 	"syscall"
 	"time"
@@ -22,16 +21,6 @@ func main() {
 	goth.UseProviders(
 		google.New(os.Getenv("GOOGLE_CLIENT_ID"), os.Getenv("GOOGLE_CLIENT_SECRET"), "http://127.0.0.1:8080/auth/google/callback"),
 	)
-	m := map[string]string{
-		"google": "Google",
-	}
-	var keys []string
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	// providerIndex := &ProviderIndex{Providers: keys, ProvidersMap: m}
 
 	ctx := context.Background()
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
@@ -86,24 +75,27 @@ func addRoutes(mux *http.ServeMux) {
 		io.WriteString(w, "home page")
 	})
 
-	mux.HandleFunc("GET /auth/google", func(res http.ResponseWriter, req *http.Request) {
-		fmt.Println("inside first handler")
+	mux.HandleFunc("GET /auth/{provider}", func(res http.ResponseWriter, req *http.Request) {
+		provider := req.PathValue("provider")
 
 		q := req.URL.Query()
-		q.Add("provider", "google")
+		q.Add("provider", provider)
 		req.URL.RawQuery = q.Encode()
 
 		if gothUser, err := gothic.CompleteUserAuth(res, req); err == nil {
-			fmt.Println("HELLO?")
 			fmt.Printf("user already logged in, email: %s\n", gothUser.Email)
 		} else {
-			fmt.Println("inside else")
 			gothic.BeginAuthHandler(res, req)
 		}
 	})
 
-	mux.HandleFunc("GET /auth/google/callback", func(res http.ResponseWriter, req *http.Request) {
-		fmt.Println("inside callback")
+	mux.HandleFunc("GET /auth/{provider}/callback", func(res http.ResponseWriter, req *http.Request) {
+
+		provider := req.PathValue("provider")
+
+		q := req.URL.Query()
+		q.Add("provider", provider)
+		req.URL.RawQuery = q.Encode()
 
 		user, err := gothic.CompleteUserAuth(res, req)
 		if err != nil {
@@ -112,11 +104,6 @@ func addRoutes(mux *http.ServeMux) {
 			return
 		}
 
-		fmt.Printf("email: %s", user.Email)
+		fmt.Printf("email: %s\n", user.Email)
 	})
-}
-
-type ProviderIndex struct {
-	Providers    []string
-	ProvidersMap map[string]string
 }
